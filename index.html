@@ -4,58 +4,203 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>دليل كيمو - اليمن</title>
-    <!-- مكتبة Supabase للربط السحابي -->
+    <!-- مكتبة Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: Tahoma, sans-serif; background-color: #f9f9f9; margin: 0; padding: 20px; text-align: right; }
-        .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        h1 { color: #2c3e50; text-align: center; }
-        .business-card { border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-radius: 6px; background: #fff; }
+        * { box-sizing: border-box; font-family: Tahoma, Arial, sans-serif; }
+        body { background-color: #f4f6f9; margin: 0; padding: 15px; text-align: right; direction: rtl; }
+        .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 20px; }
+        h1 { color: #2c3e50; font-size: 22px; margin: 0; }
+        .btn { background-color: #27ae60; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold; }
+        .btn-danger { background-color: #e74c3c; }
+        .btn-admin { background-color: #2980b9; }
+        .admin-section { background: #eef7fc; border: 1px solid #bce1f3; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: none; }
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 13px; color: #333; }
+        .form-group input, .form-group textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; }
+        .business-card { border: 1px solid #e1e8ed; padding: 15px; margin-bottom: 15px; border-radius: 8px; background: #fff; position: relative; }
+        .business-card h3 { margin: 0 0 8px 0; color: #16a085; }
+        .business-card p { margin: 4px 0; font-size: 14px; color: #555; }
+        .card-actions { margin-top: 10px; border-top: 1px dashed #eee; padding-top: 8px; text-align: left; }
+        .badge { background: #f39c12; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>دليل الأنشطة التجارية - كيمو</h1>
-    <div id="businesses-list">جاري تحميل البيانات من سحابية Supabase...</div>
+    <div class="header">
+        <h1>دليل كيمو التجارية 🇾🇪</h1>
+        <button id="adminBtn" class="btn btn-admin" onclick="toggleAdminLogin()">لوحة المالك 🔐</button>
+    </div>
+
+    <!-- لوحة إدخال المالك الآمنة -->
+    <div id="adminPanel" class="admin-section">
+        <h3 style="margin-top:0; color:#2980b9;">إضافة نشاط تجاري جديد (لوحة المالك)</h3>
+        <form id="addBusinessForm" onsubmit="saveBusiness(event)">
+            <div class="form-group">
+                <label>اسم النشاط التجاري *</label>
+                <input type="text" id="title" required placeholder="مثال: مطعم الأمل">
+            </div>
+            <div class="form-group">
+                <label>التصنيف *</label>
+                <input type="text" id="category" placeholder="مطاعم، صيدليات، ملابس...">
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <div class="form-group" style="flex: 1;">
+                    <label>المدينة</label>
+                    <input type="text" id="city" placeholder="صنعاء، عدن...">
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label>الحي / الشارع</label>
+                    <input type="text" id="district" placeholder="السبعين، حدة...">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>رقم الهاتف / الواتساب</label>
+                <input type="text" id="phone" placeholder="770000000">
+            </div>
+            <div class="form-group">
+                <label>وصف النشاط</label>
+                <textarea id="desc" rows="2" placeholder="تفاصيل الخدمات أو الوجبات..."></textarea>
+            </div>
+            <div class="form-group">
+                <label>اسم صاحب النشاط</label>
+                <input type="text" id="owner_name" placeholder="اسم المالك">
+            </div>
+            <button type="submit" class="btn" style="width: 100%;">حفظ وإضافة النشاط ➕</button>
+        </form>
+    </div>
+
+    <!-- قائمة الأنشطة -->
+    <h2>الأنشطة المضافة:</h2>
+    <div id="businesses-list">جاري تحميل البيانات...</div>
 </div>
 
 <script>
-    // إعدادات الاتصال بقاعدة بيانات Supabase الخاصة بك
     const SUPABASE_URL = 'https://ahctznfsxvzzjaddjbm.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_tPPeW1SijdDQsRu3JFp1Yw_-XraChPq';
+    
+    // بيانات الاعتماد الآمنة للمالك
+    const ADMIN_USER = '2001';
+    const ADMIN_PASS = '203096qq';
+    let isAdminLoggedIn = false;
 
     const { createClient } = supabase;
     const _supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    async function fetchBusinesses() {
-        const { data, error } = await _supabase.from('businesses').select('*');
-        const listDiv = document.getElementById('businesses-list');
-        
-        if (error) {
-            listDiv.innerHTML = 'حدث خطأ أثناء جلب البيانات: ' + error.message;
+    // التحقق التلقائي عند فتح الصفحة من وجود جلسة مسجلة سابقاً
+    window.onload = function() {
+        const savedAuth = localStorage.getItem('kemo_admin_auth');
+        if (savedAuth === 'true') {
+            isAdminLoggedIn = true;
+            document.getElementById('adminPanel').style.display = 'block';
+            document.getElementById('adminBtn').innerText = 'تسجيل الخروج 🔓';
+        }
+        fetchBusinesses();
+    };
+
+    // نظام تسجيل الدخول الخافض للعبء والحافظ للجلسة
+    function toggleAdminLogin() {
+        if (isAdminLoggedIn) {
+            isAdminLoggedIn = false;
+            localStorage.removeItem('kemo_admin_auth');
+            document.getElementById('adminPanel').style.display = 'none';
+            document.getElementById('adminBtn').innerText = 'لوحة المالك 🔐';
+            alert('تم تسجيل الخروج بنجاح.');
+            fetchBusinesses();
             return;
         }
 
-        if (data.length === 0) {
-            listDiv.innerHTML = '<p>لا توجد أنشطة مضافة حالياً في قاعدة البيانات.</p>';
+        const inputUser = prompt('أدخل اسم مستخدم المالك:');
+        if (inputUser === null) return;
+        
+        const inputPass = prompt('أدخل كلمة المرور:');
+        if (inputPass === null) return;
+
+        if (inputUser === ADMIN_USER && inputPass === ADMIN_PASS) {
+            isAdminLoggedIn = true;
+            localStorage.setItem('kemo_admin_auth', 'true'); // حفظ حالة الدخول
+            document.getElementById('adminPanel').style.display = 'block';
+            document.getElementById('adminBtn').innerText = 'تسجيل الخروج 🔓';
+            alert('مرحباً بك يا مالك الموقع (2001)! سيتم تذكر تسجيل دخولك تلقائياً في هذا المتصفح.');
+            fetchBusinesses();
+        } else {
+            alert('بيانات الدخول غير صحيحة!');
+        }
+    }
+
+    // جلب الأنشطة من Supabase
+    async function fetchBusinesses() {
+        const listDiv = document.getElementById('businesses-list');
+        const { data, error } = await _supabase.from('businesses').select('*').order('created_at', { ascending: false });
+
+        if (error) {
+            listDiv.innerHTML = '<p style="color:red;">خطأ في الاتصال: ' + error.message + '</p>';
+            return;
+        }
+
+        if (!data || data.length === 0) {
+            listDiv.innerHTML = '<p>لا توجد أنشطة تجارية مضافة حتى الآن.</p>';
             return;
         }
 
         listDiv.innerHTML = '';
         data.forEach(item => {
+            let deleteBtn = isAdminLoggedIn 
+                ? `<div class="card-actions"><button class="btn btn-danger" onclick="deleteBusiness(${item.id})">حذف هذا النشاط 🗑️</button></div>` 
+                : '';
+
             listDiv.innerHTML += `
                 <div class="business-card">
-                    <h3>${item.title || 'بدون عنوان'}</h3>
-                    <p><strong>التصنيف:</strong> ${item.category || '-'} | <strong>المدينة:</strong> ${item.city || '-'}</p>
-                    <p>${item.desc || ''}</p>
-                    <p><strong>الهاتف:</strong> ${item.phone || '-'}</p>
+                    <h3>${item.title || 'بدون اسم'} <span class="badge">${item.category || 'عام'}</span></h3>
+                    <p>📍 <strong>الموقع:</strong> ${item.city || '-'} - ${item.district || '-'}</p>
+                    <p>📞 <strong>الهاتف:</strong> ${item.phone || '-'}</p>
+                    <p>📝 <strong>الوصف:</strong> ${item.desc || 'لا يوجد وصف'}</p>
+                    ${item.owner_name ? `<p>👤 <strong>المالك:</strong> ${item.owner_name}</p>` : ''}
+                    ${deleteBtn}
                 </div>
             `;
         });
     }
 
-    fetchBusinesses();
+    // إضافة نشاط جديد
+    async function saveBusiness(e) {
+        e.preventDefault();
+        const newBusiness = {
+            title: document.getElementById('title').value,
+            category: document.getElementById('category').value,
+            city: document.getElementById('city').value,
+            district: document.getElementById('district').value,
+            phone: document.getElementById('phone').value,
+            desc: document.getElementById('desc').value,
+            owner_name: document.getElementById('owner_name').value,
+            status: 'active'
+        };
+
+        const { error } = await _supabase.from('businesses').insert([newBusiness]);
+
+        if (error) {
+            alert('حدث خطأ أثناء الحفظ: ' + error.message);
+        } else {
+            alert('تمت إضافة النشاط التجاري بنجاح! 🎉');
+            document.getElementById('addBusinessForm').reset();
+            fetchBusinesses();
+        }
+    }
+
+    // حذف نشاط
+    async function deleteBusiness(id) {
+        if (!confirm('تحذير: هل أنت متأكد من رغبتك في حذف هذا النشاط نهائياً؟')) return;
+
+        const { error } = await _supabase.from('businesses').delete().eq('id', id);
+        if (error) {
+            alert('خطأ أثناء الحذف: ' + error.message);
+        } else {
+            alert('تم الحذف بنجاح!');
+            fetchBusinesses();
+        }
+    }
 </script>
 
 </body>
